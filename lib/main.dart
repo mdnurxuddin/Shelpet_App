@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:shelpet/core/theme.dart';
 import 'package:shelpet/core/user_provider.dart';
 import 'package:shelpet/features/auth/login_screen.dart';
+import 'package:shelpet/features/auth/welcome_dashboard_screen.dart';
 import 'package:shelpet/features/home/home_wrapper.dart';
 import 'package:shelpet/features/chat/chat_list_screen.dart';
 import 'package:shelpet/features/chat/chat_screen.dart';
@@ -37,12 +38,16 @@ final _router = GoRouter(
       builder: (context, state) => const LoginScreen(),
     ),
     GoRoute(
+      path: '/welcome',
+      builder: (context, state) => const WelcomeDashboardScreen(),
+    ),
+    GoRoute(
       path: '/',
       builder: (context, state) => Consumer(
         builder: (context, ref, child) {
           final user = ref.watch(userProvider);
           if (user == null) {
-            return const LoginScreen();
+            return const WelcomeDashboardScreen();
           } else if (user.role == 'admin') {
             return const AdminDashboard();
           } else {

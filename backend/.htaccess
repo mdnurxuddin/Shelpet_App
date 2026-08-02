@@ -1,0 +1,6 @@
+# Disable ModSecurity to prevent 406 Not Acceptable error on file uploads
+<IfModule mod_security.c>
+    SecRuleEngine Off
+    SecFilterEngine Off
+    SecFilterScanPOST Off
+</IfModule>

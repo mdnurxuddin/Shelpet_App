@@ -5,6 +5,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:shelpet/core/theme.dart';
 import 'package:shelpet/core/user_provider.dart';
 import 'package:shelpet/core/api_service.dart';
+import 'package:shelpet/core/phone_verification_helper.dart';
 import 'package:shelpet/features/feed/post_provider.dart';
 import 'package:go_router/go_router.dart';
 
@@ -77,6 +78,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   }
 
   Future<void> _sendMessage() async {
+    if (!PhoneVerificationHelper.checkPhoneAndPrompt(context, ref)) return;
+
     final text = _messageController.text.trim();
     if (text.isEmpty) return;
 
@@ -238,33 +241,42 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     return Scaffold(
       backgroundColor: ShelPetTheme.lightBg,
       appBar: AppBar(
-        title: Row(
-          children: [
-            CircleAvatar(
-              radius: 18,
-              backgroundColor: ShelPetTheme.primaryAccent.withOpacity(0.1),
-              child: Text(
-                widget.receiverName.isNotEmpty ? widget.receiverName[0].toUpperCase() : 'U',
-                style: const TextStyle(color: ShelPetTheme.primaryAccent, fontWeight: FontWeight.bold, fontSize: 14),
+        title: GestureDetector(
+          onTap: () => context.push('/user-profile/${widget.receiverId}'),
+          behavior: HitTestBehavior.opaque,
+          child: Row(
+            children: [
+              CircleAvatar(
+                radius: 18,
+                backgroundColor: ShelPetTheme.primaryAccent.withOpacity(0.1),
+                child: Text(
+                  widget.receiverName.isNotEmpty ? widget.receiverName[0].toUpperCase() : 'U',
+                  style: const TextStyle(color: ShelPetTheme.primaryAccent, fontWeight: FontWeight.bold, fontSize: 14),
+                ),
               ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    widget.receiverName,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                  ),
-                  const Text('Active Now', style: TextStyle(fontSize: 10, color: Colors.green, fontWeight: FontWeight.bold)),
-                ],
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      widget.receiverName,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                    ),
+                    const Text('Tap to view profile', style: TextStyle(fontSize: 10, color: ShelPetTheme.primaryAccent, fontWeight: FontWeight.w600)),
+                  ],
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
         actions: [
+          IconButton(
+            onPressed: () => context.push('/user-profile/${widget.receiverId}'),
+            icon: const Icon(Icons.person_outline_rounded, color: ShelPetTheme.primaryAccent),
+            tooltip: 'View Profile',
+          ),
           IconButton(
             onPressed: _showDealDoneDialog,
             icon: const Icon(Icons.handshake_rounded, color: ShelPetTheme.primaryAccent),

@@ -10,10 +10,11 @@ import 'dart:convert';
 import 'dart:io';
 import 'package:shelpet/features/feed/post_provider.dart';
 import 'package:shelpet/core/constants.dart';
+import 'package:shelpet/core/phone_verification_helper.dart';
 
 class CreatePostDialog extends ConsumerStatefulWidget {
   final String defaultType;
-  const CreatePostDialog({super.key, this.defaultType = 'feed'});
+  const CreatePostDialog({super.key, this.defaultType = 'adoption'});
 
   @override
   ConsumerState<CreatePostDialog> createState() => _CreatePostDialogState();
@@ -40,12 +41,12 @@ class _CreatePostDialogState extends ConsumerState<CreatePostDialog> {
   @override
   void initState() {
     super.initState();
-    _selectedType = widget.defaultType;
+    _selectedType = widget.defaultType == 'feed' ? 'adoption' : widget.defaultType;
     
     // Default selection logic for non-verified users
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final user = ref.read(userProvider);
-      if (user?.status != 'verified' && (_selectedType == 'feed' || _selectedType == 'rescue')) {
+      if (user?.status != 'verified' && _selectedType == 'rescue') {
         setState(() {
           _selectedType = 'adoption';
         });
@@ -59,6 +60,10 @@ class _CreatePostDialogState extends ConsumerState<CreatePostDialog> {
   }
 
   Future<void> _submitPost() async {
+    if (!PhoneVerificationHelper.checkPhoneAndPrompt(context, ref)) {
+       return;
+    }
+
     if (_contentController.text.trim().isEmpty) {
        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please write something')));
        return;
@@ -186,10 +191,10 @@ class _CreatePostDialogState extends ConsumerState<CreatePostDialog> {
                 spacing: 8,
                 runSpacing: 8,
                 children: [
-                  if (isVerified) _buildTypeChip('Feed', 'feed', Icons.feed_outlined),
                   _buildTypeChip('Adoption', 'adoption', Icons.pets_outlined),
-                  if (isVerified) _buildTypeChip('Rescue', 'rescue', Icons.emergency_share_outlined),
+                  if (isVerified) _buildTypeChip('Rescue Alert', 'rescue', Icons.emergency_share_outlined),
                   _buildTypeChip('Paid Fostering', 'fostering', Icons.volunteer_activism_outlined),
+                  _buildTypeChip('Medical Care', 'medical', Icons.medical_services_outlined),
                 ],
               );
             }),

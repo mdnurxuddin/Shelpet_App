@@ -5,6 +5,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:shelpet/core/theme.dart';
 import 'package:shelpet/core/user_provider.dart';
 import 'package:shelpet/core/api_service.dart';
+import 'package:shelpet/core/phone_verification_helper.dart';
 import 'package:go_router/go_router.dart';
 
 class ProfileScreen extends ConsumerWidget {
@@ -228,6 +229,13 @@ class ProfileScreen extends ConsumerWidget {
                 if (isSelf) ...[
                   Text('Account Settings', style: GoogleFonts.outfit(fontSize: 18, fontWeight: FontWeight.bold)),
                   const SizedBox(height: 12),
+                  _buildOptionTile(
+                    user.hasPhone ? Icons.phone_android_rounded : Icons.phone_locked_rounded,
+                    user.hasPhone ? 'Phone Number' : 'Add Phone Number (Required)',
+                    user.hasPhone ? user.phone! : 'Tap to add phone number to enable posting & buying',
+                    color: user.hasPhone ? ShelPetTheme.primaryAccent : Colors.orange.shade800,
+                    onTap: () => PhoneVerificationHelper.showPhoneRequiredDialog(context, ref),
+                  ),
                   _buildOptionTile(
                     Icons.history, 
                     'My Activity', 

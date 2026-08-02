@@ -90,27 +90,30 @@ class ChatListScreen extends ConsumerWidget {
                       context.push('/chat/$otherId/$otherName');
                     },
                     contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                    leading: Stack(
-                      children: [
-                        CircleAvatar(
-                          radius: 26,
-                          backgroundColor: ShelPetTheme.primaryAccent.withOpacity(0.1),
-                          backgroundImage: otherAvatar != null ? NetworkImage(otherAvatar) : null,
-                          child: otherAvatar == null
-                              ? Text(otherName[0].toUpperCase(), style: const TextStyle(color: ShelPetTheme.primaryAccent, fontWeight: FontWeight.bold))
-                              : null,
-                        ),
-                        if (unreadCount > 0)
-                          Positioned(
-                            right: 0,
-                            bottom: 0,
-                            child: Container(
-                              height: 14,
-                              width: 14,
-                              decoration: BoxDecoration(color: Colors.green, shape: BoxShape.circle, border: Border.all(color: Colors.white, width: 2)),
-                            ),
+                    leading: GestureDetector(
+                      onTap: () => context.push('/user-profile/$otherId'),
+                      child: Stack(
+                        children: [
+                          CircleAvatar(
+                            radius: 26,
+                            backgroundColor: ShelPetTheme.primaryAccent.withOpacity(0.1),
+                            backgroundImage: otherAvatar != null && otherAvatar.isNotEmpty ? NetworkImage(otherAvatar) : null,
+                            child: (otherAvatar == null || otherAvatar.isEmpty)
+                                ? Text(otherName.isNotEmpty ? otherName[0].toUpperCase() : 'U', style: const TextStyle(color: ShelPetTheme.primaryAccent, fontWeight: FontWeight.bold))
+                                : null,
                           ),
-                      ],
+                          if (unreadCount > 0)
+                            Positioned(
+                              right: 0,
+                              bottom: 0,
+                              child: Container(
+                                height: 14,
+                                width: 14,
+                                decoration: BoxDecoration(color: Colors.green, shape: BoxShape.circle, border: Border.all(color: Colors.white, width: 2)),
+                              ),
+                            ),
+                        ],
+                      ),
                     ),
                     title: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,

@@ -4,7 +4,7 @@ include_once '../config.php';
 $data = json_decode(file_get_contents("php://input"));
 
 if(!empty($data->email) && !empty($data->password)) {
-    $query = "SELECT id, name, email, avatar, password, user_category, verification_status, rating, role, address FROM users WHERE email = :email";
+    $query = "SELECT id, name, email, phone, avatar, password, user_category, verification_status, is_email_verified, rating, role, address FROM users WHERE email = :email";
     $stmt = $conn->prepare($query);
     $stmt->bindParam(':email', $data->email);
     $stmt->execute();
@@ -13,6 +13,15 @@ if(!empty($data->email) && !empty($data->password)) {
         $user = $stmt->fetch(PDO::FETCH_ASSOC);
         if($user && password_verify($data->password, $user['password'])) {
             unset($user['password']);
+
+            // Check email verification status
+            if (isset($user['is_email_verified']) && $user['is_email_verified'] == 0) {
+                sendResponse(false, "Your email is not verified yet. Please enter the verification code sent to your email.", [
+                    "require_otp" => true,
+                    "email" => $user['email']
+                ]);
+            }
+
             sendResponse(true, "Login successful.", $user);
         } else if (!$user) {
             sendResponse(false, "Failed to retrieve user profile from database.");

@@ -15,6 +15,7 @@ import 'package:shelpet/features/feed/comments_bottom_sheet.dart';
 import 'package:shelpet/features/feed/internal_share_sheet.dart';
 import 'package:shelpet/core/api_service.dart';
 import 'package:shelpet/core/notification_provider.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 
 
 class FeedScreen extends ConsumerWidget {
@@ -246,7 +247,7 @@ class FeedScreen extends ConsumerWidget {
                       radius: 20,
                       backgroundColor: ShelPetTheme.secondaryAccent.withOpacity(0.05),
                       backgroundImage: post.userAvatar != null && post.userAvatar!.isNotEmpty
-                          ? NetworkImage(post.userAvatar!)
+                          ? CachedNetworkImageProvider(post.userAvatar!)
                           : null,
                       child: post.userAvatar == null || post.userAvatar!.isEmpty
                           ? Text(post.userName[0], style: const TextStyle(color: ShelPetTheme.secondaryAccent, fontWeight: FontWeight.bold, fontSize: 14))
@@ -325,11 +326,20 @@ class FeedScreen extends ConsumerWidget {
               padding: const EdgeInsets.symmetric(horizontal: 12),
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(20),
-                child: Image.network(
-                  post.image!,
+                child: CachedNetworkImage(
+                  imageUrl: post.image!,
                   width: double.infinity,
                   fit: BoxFit.cover,
-                  errorBuilder: (context, error, stackTrace) => const SizedBox(),
+                  placeholder: (context, url) => Shimmer.fromColors(
+                    baseColor: Colors.grey[200]!,
+                    highlightColor: Colors.grey[50]!,
+                    child: Container(
+                      height: 200,
+                      width: double.infinity,
+                      color: Colors.white,
+                    ),
+                  ),
+                  errorWidget: (context, url, error) => const SizedBox(),
                 ),
               ),
             ),
@@ -517,10 +527,19 @@ class FeedScreen extends ConsumerWidget {
       if (type == 'rescue') {
         color = Colors.redAccent;
         icon = Icons.emergency_share;
-      }
-      if (type == 'adoption') {
+        label = "RESCUE ALERT 🚨";
+      } else if (type == 'adoption') {
         color = Colors.green;
         icon = Icons.pets;
+        label = "ADOPTION 🐾";
+      } else if (type == 'fostering') {
+        color = Colors.orange;
+        icon = Icons.volunteer_activism;
+        label = "FOSTERING 🏠";
+      } else if (type == 'medical') {
+        color = Colors.teal;
+        icon = Icons.medical_services_outlined;
+        label = "MEDICAL CARE 🩺";
       }
     }
 

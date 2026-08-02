@@ -5,6 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:shelpet/core/theme.dart';
 import 'package:shelpet/core/user_provider.dart';
 import 'package:shelpet/core/api_service.dart';
+import 'package:shelpet/core/phone_verification_helper.dart';
 import 'package:go_router/go_router.dart';
 
 class SettingsScreen extends ConsumerStatefulWidget {
@@ -85,6 +86,13 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           ),
           const SizedBox(height: 30),
           _buildSectionHeader('Account Security'),
+          _buildSettingTile(
+            icon: user?.hasPhone == true ? Icons.phone_android_rounded : Icons.phone_locked_rounded,
+            title: user?.hasPhone == true ? 'Phone Number' : 'Add Phone Number (Required)',
+            subtitle: user?.hasPhone == true ? user!.phone! : 'Required to post, adopt, or buy items',
+            color: user?.hasPhone == true ? ShelPetTheme.primaryAccent : Colors.orange.shade800,
+            onTap: () => PhoneVerificationHelper.showPhoneRequiredDialog(context, ref),
+          ),
           _buildSettingTile(
             icon: Icons.lock_reset_rounded,
             title: 'Change Password',

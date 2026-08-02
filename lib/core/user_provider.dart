@@ -8,6 +8,7 @@ class UserProfile {
   final int id;
   final String name;
   final String email;
+  final String? phone;
   final String? avatar;
   final String category;
   final String status;
@@ -16,13 +17,15 @@ class UserProfile {
   final String? address;
 
   UserProfile({
-    required this.id, required this.name, required this.email, this.avatar,
+    required this.id, required this.name, required this.email, this.phone, this.avatar,
     required this.category, required this.status, required this.rating, required this.role,
     this.address,
   });
 
+  bool get hasPhone => phone != null && phone!.trim().isNotEmpty;
+
   Map<String, dynamic> toJson() => {
-    'id': id, 'name': name, 'email': email, 'avatar': avatar,
+    'id': id, 'name': name, 'email': email, 'phone': phone, 'avatar': avatar,
     'user_category': category, 'verification_status': status, 'rating': rating, 'role': role,
     'address': address,
   };
@@ -32,6 +35,7 @@ class UserProfile {
       id: int.parse(json['id'].toString()),
       name: json['name'] ?? '',
       email: json['email'] ?? '',
+      phone: json['phone'],
       avatar: json['avatar'],
       category: json['user_category'] ?? 'Adoptor',
       status: json['verification_status'] ?? 'pending',

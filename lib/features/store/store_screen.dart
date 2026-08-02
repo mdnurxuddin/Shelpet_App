@@ -7,6 +7,7 @@ import 'dart:io';
 import 'package:shelpet/core/theme.dart';
 import 'package:shelpet/core/api_service.dart';
 import 'package:shelpet/core/user_provider.dart';
+import 'package:shelpet/core/phone_verification_helper.dart';
 
 class Product {
   final int id;
@@ -65,7 +66,7 @@ class StoreScreen extends ConsumerWidget {
 
   void _showOrderConfirmation(BuildContext context, Product product, WidgetRef ref) {
     final addressController = TextEditingController(text: ref.read(userProvider)?.address ?? '');
-    final phoneController = TextEditingController();
+    final phoneController = TextEditingController(text: ref.read(userProvider)?.phone ?? '');
     final user = ref.read(userProvider);
     bool isOrdering = false;
 
@@ -114,6 +115,7 @@ class StoreScreen extends ConsumerWidget {
                 height: 54,
                 child: ElevatedButton(
                   onPressed: isOrdering ? null : () async {
+                    if (!PhoneVerificationHelper.checkPhoneAndPrompt(context, ref)) return;
                     if (addressController.text.isEmpty || phoneController.text.isEmpty) return;
                     setModalState(() => isOrdering = true);
                     

@@ -9,6 +9,7 @@ import 'package:shelpet/core/theme.dart';
 import 'package:shelpet/core/user_provider.dart';
 import 'package:shelpet/features/feed/post_provider.dart';
 import 'package:shelpet/core/api_service.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 
 class MyActivityScreen extends ConsumerWidget {
   const MyActivityScreen({super.key});
@@ -73,30 +74,101 @@ class MyActivityScreen extends ConsumerWidget {
                             style: const TextStyle(color: ShelPetTheme.primaryAccent, fontSize: 10, fontWeight: FontWeight.bold),
                           ),
                         ),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                          decoration: BoxDecoration(
-                            color: isRescued ? Colors.green.withOpacity(0.1) : Colors.orange.withOpacity(0.1),
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: Text(
-                            isRescued ? "RESCUED" : "ACTIVE",
-                            style: TextStyle(
-                              color: isRescued ? Colors.green : Colors.orange.shade800,
-                              fontSize: 10, 
-                              fontWeight: FontWeight.bold
+                        Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: isRescued ? Colors.green.withOpacity(0.1) : Colors.orange.withOpacity(0.1),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Text(
+                                isRescued ? "RESCUED" : "ACTIVE",
+                                style: TextStyle(
+                                  color: isRescued ? Colors.green : Colors.orange.shade800,
+                                  fontSize: 10, 
+                                  fontWeight: FontWeight.bold
+                                ),
+                              ),
                             ),
-                          ),
+                            const SizedBox(width: 4),
+                            IconButton(
+                              icon: const Icon(Icons.delete_outline_rounded, color: Colors.redAccent, size: 20),
+                              padding: EdgeInsets.zero,
+                              constraints: const BoxConstraints(),
+                              onPressed: () async {
+                                final confirm = await showDialog<bool>(
+                                  context: context,
+                                  builder: (context) => AlertDialog(
+                                    title: const Text('Delete Post?'),
+                                    content: const Text('Are you sure you want to delete this activity post?'),
+                                    actions: [
+                                      TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
+                                      ElevatedButton(
+                                        onPressed: () => Navigator.pop(context, true),
+                                        style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent),
+                                        child: const Text('Delete', style: TextStyle(color: Colors.white)),
+                                      ),
+                                    ],
+                                  ),
+                                );
+                                if (confirm == true && user != null) {
+                                  final response = await ApiService.deletePost(user.id, post.id);
+                                  if (response['status'] == true) {
+                                    ref.invalidate(postsProvider);
+                                  }
+                                }
+                              },
+                            ),
+                          ],
                         ),
                       ],
                     ),
                     const SizedBox(height: 12),
+                    // Full post text (no truncation)
                     Text(
                       post.content,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(fontSize: 14, color: ShelPetTheme.textPrimary),
+                      style: GoogleFonts.inter(fontSize: 14, height: 1.5, color: ShelPetTheme.textPrimary),
                     ),
+                    if (post.image != null && post.image!.isNotEmpty) ...[
+                      const SizedBox(height: 12),
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(16),
+                        child: CachedNetworkImage(
+                          imageUrl: post.image!,
+                          width: double.infinity,
+                          fit: BoxFit.cover,
+                          placeholder: (context, url) => Container(
+                            height: 160,
+                            color: Colors.grey.shade100,
+                            child: const Center(child: CircularProgressIndicator(strokeWidth: 2)),
+                          ),
+                          errorWidget: (context, url, error) => const SizedBox(),
+                        ),
+                      ),
+                    ],
+                    if (post.location != null && post.location!.isNotEmpty) ...[
+                      const SizedBox(height: 10),
+                      Row(
+                        children: [
+                          const Icon(Icons.location_on_rounded, size: 14, color: ShelPetTheme.secondaryAccent),
+                          const SizedBox(width: 4),
+                          Expanded(
+                            child: Text(
+                              post.location!,
+                              style: const TextStyle(color: ShelPetTheme.textMuted, fontSize: 12, fontWeight: FontWeight.w500),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                    if (post.type == 'fostering' && post.price > 0) ...[
+                      const SizedBox(height: 8),
+                      Text(
+                        "Rate: ৳${post.price.toInt()} / day",
+                        style: const TextStyle(color: Colors.orange, fontSize: 12, fontWeight: FontWeight.bold),
+                      ),
+                    ],
                     const SizedBox(height: 12),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,

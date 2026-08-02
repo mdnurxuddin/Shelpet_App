@@ -1,13 +1,14 @@
 <?php
 $host = "localhost";
-$db_name = "shelpet";
-$username = "root";
-$password = "";
+$db_name = "stratixb_shelpet";
+$username = "stratixb_user";
+$password = "UC6xpI%ZSQ.N8^JL";
 
 try {
-    $conn = new PDO("mysql:host=$host;dbname=$db_name", $username, $password);
+    $conn = new PDO("mysql:host=$host;dbname=$db_name;charset=utf8mb4", $username, $password);
     $conn->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
-} catch(PDOException $exception) {
+    $conn->exec("SET NAMES utf8mb4");
+} catch (PDOException $exception) {
     echo "Connection error: " . $exception->getMessage();
 }
 
@@ -31,7 +32,8 @@ try {
 } catch (Exception $e) {
 }
 
-function sendResponse($status, $message, $data = null) {
+function sendResponse($status, $message, $data = null)
+{
     header("Content-Type: application/json");
     echo json_encode([
         "status" => $status,

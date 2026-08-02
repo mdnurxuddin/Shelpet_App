@@ -2,7 +2,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 
 class ApiService {
-  static const String baseUrl = "http://192.168.0.141/shelpet_api"; 
+  static const String baseUrl = "https://api.stratixbd.com"; 
 
   static Future<Map<String, dynamic>> login(String email, String password) async {
     try {
@@ -11,22 +11,67 @@ class ApiService {
     } catch (e) { return {"status": false, "message": "Connection error: $e"}; }
   }
 
-  static Future<Map<String, dynamic>> register(String name, String email, String password, {String? nid, String? userCategory, String? address}) async {
+  static Future<Map<String, dynamic>> register(String name, String email, String password, {required String phone, String? nid, String? userCategory, String? address}) async {
     try {
-      final response = await http.post(Uri.parse("$baseUrl/auth/register.php"), body: jsonEncode({"name": name, "email": email, "password": password, "nid": nid, "user_category": userCategory, "address": address}));
+      final response = await http.post(Uri.parse("$baseUrl/auth/register.php"), body: jsonEncode({"name": name, "email": email, "password": password, "phone": phone, "nid": nid, "user_category": userCategory, "address": address}));
       return jsonDecode(response.body);
     } catch (e) { return {"status": false, "message": "Connection error: $e"}; }
   }
 
+  static Future<Map<String, dynamic>> updatePhone(int userId, String phone) async {
+    try {
+      final response = await http.post(Uri.parse("$baseUrl/profile/update_phone.php"), body: jsonEncode({"user_id": userId, "phone": phone}));
+      return jsonDecode(response.body);
+    } catch (e) { return {"status": false, "message": "Connection error: $e"}; }
+  }
+
+  static Future<Map<String, dynamic>> verifyOtp(String email, String otp) async {
+    try {
+      final response = await http.post(
+        Uri.parse("$baseUrl/auth/verify_otp.php"),
+        body: jsonEncode({"email": email, "otp": otp}),
+      );
+      return jsonDecode(response.body);
+    } catch (e) {
+      return {"status": false, "message": "Connection error: $e"};
+    }
+  }
+
+  static Future<Map<String, dynamic>> resendOtp(String email) async {
+    try {
+      final response = await http.post(
+        Uri.parse("$baseUrl/auth/resend_otp.php"),
+        body: jsonEncode({"email": email}),
+      );
+      return jsonDecode(response.body);
+    } catch (e) {
+      return {"status": false, "message": "Connection error: $e"};
+    }
+  }
+
   static Future<String?> uploadImage(String filePath) async {
     try {
+      print("Attempting to upload: $filePath");
       var request = http.MultipartRequest('POST', Uri.parse("$baseUrl/upload_image.php"));
+      
+      // Add standard headers to prevent WAF / ModSecurity block
+      request.headers.addAll({
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+        'Accept': 'application/json',
+      });
+
       request.files.add(await http.MultipartFile.fromPath('image', filePath, filename: filePath.split('/').last));
       var response = await request.send();
       var responseData = await http.Response.fromStream(response);
+      
+      print("Upload Response Status: ${response.statusCode}");
+      print("Upload Response Body: ${responseData.body}");
+
       var result = jsonDecode(responseData.body);
       if (result['status'] == true) return result['data'];
-    } catch (e) { print("Upload Error: $e"); }
+    } catch (e) { 
+      print("Upload Error Exception: $e"); 
+    }
     return null;
   }
 
@@ -204,6 +249,35 @@ class ApiService {
   static Future<Map<String, dynamic>> deleteUser(int adminId, int targetUserId) async {
     try {
       final response = await http.post(Uri.parse("$baseUrl/admin/delete_user.php"), body: jsonEncode({"admin_id": adminId, "target_user_id": targetUserId}));
+      return jsonDecode(response.body);
+    } catch (e) { return {"status": false, "message": "Connection error: $e"}; }
+  }
+
+  static Future<Map<String, dynamic>> deleteProduct(int productId) async {
+    try {
+      final response = await http.post(Uri.parse("$baseUrl/store/delete_product.php"), body: jsonEncode({"product_id": productId}));
+      return jsonDecode(response.body);
+    } catch (e) { return {"status": false, "message": "Connection error: $e"}; }
+  }
+
+  static Future<Map<String, dynamic>> updateProductStock(int productId, int stock) async {
+    try {
+      final response = await http.post(Uri.parse("$baseUrl/store/update_product_stock.php"), body: jsonEncode({"product_id": productId, "stock": stock}));
+      return jsonDecode(response.body);
+    } catch (e) { return {"status": false, "message": "Connection error: $e"}; }
+  }
+
+  static Future<List<dynamic>> getAllOrdersAdmin() async {
+    try {
+      final response = await http.get(Uri.parse("$baseUrl/store/get_orders.php?role=admin"));
+      final data = jsonDecode(response.body);
+      return data['status'] == true ? data['data'] ?? [] : [];
+    } catch (e) { return []; }
+  }
+
+  static Future<Map<String, dynamic>> updateOrderStatus(int orderId, String status) async {
+    try {
+      final response = await http.post(Uri.parse("$baseUrl/store/update_order_status.php"), body: jsonEncode({"order_id": orderId, "status": status}));
       return jsonDecode(response.body);
     } catch (e) { return {"status": false, "message": "Connection error: $e"}; }
   }

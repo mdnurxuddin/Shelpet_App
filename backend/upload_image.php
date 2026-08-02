@@ -18,13 +18,14 @@ if(isset($_FILES["image"])) {
     $target_file = $target_dir . $file_name;
 
     if (move_uploaded_file($_FILES["image"]["tmp_name"], $target_file)) {
-        // Use your PC IP here
-        $my_ip = "192.168.0.141";
-        $actual_link = "http://" . $my_ip . "/shelpet_api/" . $target_file;
+        $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? "https://" : "http://";
+        $host = $_SERVER['HTTP_HOST'];
+        $actual_link = $protocol . $host . "/" . $target_file;
         sendResponse(true, "Upload successful", $actual_link);
     } else {
         $error = error_get_last();
-        sendResponse(false, "Upload failed: " . $error['message']);
+        $err_msg = isset($error['message']) ? $error['message'] : 'Unknown error (check uploads directory write permissions or file size limits)';
+        sendResponse(false, "Upload failed: " . $err_msg);
     }
 } else {
     sendResponse(false, "No image found in request field 'image'. Available fields: " . json_encode($_FILES));

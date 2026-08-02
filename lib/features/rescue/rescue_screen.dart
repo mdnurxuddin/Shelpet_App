@@ -4,10 +4,13 @@ import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:shelpet/core/theme.dart';
 import 'package:shelpet/core/user_provider.dart';
 import 'package:shelpet/core/api_service.dart';
+import 'package:shelpet/core/phone_verification_helper.dart';
 import 'package:shelpet/features/feed/post_provider.dart';
 import 'package:shelpet/features/feed/create_post_dialog.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:go_router/go_router.dart';
+import 'package:cached_network_image/cached_network_image.dart';
+import 'package:shimmer/shimmer.dart';
 
 class RescueScreen extends ConsumerWidget {
   const RescueScreen({super.key});
@@ -149,15 +152,20 @@ class RescueScreen extends ConsumerWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          if (post.image != null)
+          if (post.image != null && post.image!.isNotEmpty)
             ClipRRect(
               borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-              child: Image.network(
-                post.image!,
+              child: CachedNetworkImage(
+                imageUrl: post.image!,
                 height: 180,
                 width: double.infinity,
                 fit: BoxFit.cover,
-                errorBuilder: (context, error, stackTrace) => Container(
+                placeholder: (context, url) => Shimmer.fromColors(
+                  baseColor: Colors.grey[200]!,
+                  highlightColor: Colors.grey[50]!,
+                  child: Container(height: 180, color: Colors.white),
+                ),
+                errorWidget: (context, url, error) => Container(
                   height: 180,
                   color: Colors.grey[100],
                   child: const Icon(Icons.broken_image, size: 40, color: Colors.grey),
@@ -295,6 +303,7 @@ class RescueScreen extends ConsumerWidget {
                     height: 48,
                     child: ElevatedButton.icon(
                       onPressed: () {
+                        if (!PhoneVerificationHelper.checkPhoneAndPrompt(context, ref)) return;
                         if (!isUserVerified) {
                            _showVerifyAlert(context);
                            return;

@@ -8,7 +8,10 @@ import 'package:shelpet/features/feed/post_provider.dart';
 import 'package:go_router/go_router.dart';
 import 'package:shelpet/core/favorites_provider.dart';
 import 'package:shelpet/core/api_service.dart';
+import 'package:shelpet/core/phone_verification_helper.dart';
 import 'package:shelpet/core/constants.dart';
+import 'package:cached_network_image/cached_network_image.dart';
+import 'package:shimmer/shimmer.dart';
 
 class AdoptionScreen extends ConsumerStatefulWidget {
   const AdoptionScreen({super.key});
@@ -62,12 +65,17 @@ class _AdoptionScreenState extends ConsumerState<AdoptionScreen> {
               if (post.image != null && post.image!.isNotEmpty)
                 ClipRRect(
                   borderRadius: BorderRadius.circular(24),
-                  child: Image.network(
-                    post.image!,
+                  child: CachedNetworkImage(
+                    imageUrl: post.image!,
                     height: 250,
                     width: double.infinity,
                     fit: BoxFit.cover,
-                    errorBuilder: (context, error, stackTrace) => Container(
+                    placeholder: (context, url) => Shimmer.fromColors(
+                      baseColor: Colors.grey[200]!,
+                      highlightColor: Colors.grey[50]!,
+                      child: Container(height: 250, color: Colors.white),
+                    ),
+                    errorWidget: (context, url, error) => Container(
                       height: 220,
                       color: Colors.grey[100],
                       child: const Icon(Icons.broken_image, size: 50, color: Colors.grey),
@@ -159,11 +167,19 @@ class _AdoptionScreenState extends ConsumerState<AdoptionScreen> {
                       onPressed: () async {
                         final response = await ApiService.updatePostStatus(post.id, 'done');
                         if (response['status'] == true) {
-                          Navigator.pop(context);
+                          if (context.mounted) Navigator.pop(context);
                           ref.invalidate(postsProvider);
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(content: Text(isFostering ? 'Marked as Booked!' : 'Marked as Adopted!')),
-                          );
+                          if (context.mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(content: Text(isFostering ? 'Marked as Booked! 🎉' : 'Marked as Adopted! 🎉')),
+                            );
+                          }
+                        } else {
+                          if (context.mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(content: Text(response['message'] ?? 'Failed to update status.')),
+                            );
+                          }
                         }
                       },
                       icon: const Icon(Icons.check_circle_outline, color: Colors.white),
@@ -186,6 +202,7 @@ class _AdoptionScreenState extends ConsumerState<AdoptionScreen> {
                     height: 56,
                     child: ElevatedButton.icon(
                       onPressed: () {
+                        if (!PhoneVerificationHelper.checkPhoneAndPrompt(context, ref)) return;
                         if (!isVerified) {
                            _showVerifyAlert(context);
                            return;
@@ -408,7 +425,18 @@ class _AdoptionScreenState extends ConsumerState<AdoptionScreen> {
                   ClipRRect(
                     borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
                     child: post.image != null && post.image!.isNotEmpty
-                        ? Image.network(post.image!, width: double.infinity, height: double.infinity, fit: BoxFit.cover)
+                        ? CachedNetworkImage(
+                            imageUrl: post.image!,
+                            width: double.infinity,
+                            height: double.infinity,
+                            fit: BoxFit.cover,
+                            placeholder: (context, url) => Shimmer.fromColors(
+                              baseColor: Colors.grey[200]!,
+                              highlightColor: Colors.grey[50]!,
+                              child: Container(color: Colors.white),
+                            ),
+                            errorWidget: (context, url, error) => const Center(child: Icon(Icons.broken_image)),
+                          )
                         : Container(color: Colors.grey[100], child: const Center(child: Icon(Icons.pets, color: Colors.grey))),
                   ),
                   if (isDone)
