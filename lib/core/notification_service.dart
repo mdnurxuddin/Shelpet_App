@@ -12,6 +12,8 @@ class NotificationService {
   static final FlutterLocalNotificationsPlugin _notificationsPlugin = FlutterLocalNotificationsPlugin();
   static Timer? _timer;
 
+  static final Set<int> _shownNotificationIds = {};
+
   static Future<void> init() async {
     const AndroidInitializationSettings initializationSettingsAndroid = AndroidInitializationSettings('@mipmap/ic_launcher');
     
@@ -35,9 +37,13 @@ class NotificationService {
       enableVibration: true,
     );
 
-    await _notificationsPlugin
-        .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()
-        ?.createNotificationChannel(channel);
+    final androidImplementation = _notificationsPlugin
+        .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
+
+    await androidImplementation?.createNotificationChannel(channel);
+    try {
+      await androidImplementation?.requestNotificationsPermission();
+    } catch (_) {}
   }
 
   static Future<void> showNotification(int id, String title, String body, {String? payload}) async {
@@ -61,9 +67,9 @@ class NotificationService {
 
   static void startPolling(int userId, WidgetRef ref) {
     _timer?.cancel();
-    print("Notification engine started...");
+    print("Notification engine started for user $userId...");
     
-    _timer = Timer.periodic(const Duration(seconds: 10), (timer) async {
+    _timer = Timer.periodic(const Duration(seconds: 6), (timer) async {
       final prefs = await SharedPreferences.getInstance();
       bool isEnabled = prefs.getBool('notifications_enabled') ?? true;
       if (!isEnabled) return;
@@ -76,20 +82,27 @@ class NotificationService {
           final data = jsonDecode(response.body);
           if (data['status'] == true) {
             List<dynamic> notifs = data['data'] ?? [];
-            if (notifs.isNotEmpty) {
-              ref.read(notificationProvider.notifier).updateCount(notifs.length);
-              for (var n in notifs) {
-                final int notifId = int.tryParse(n['id'].toString()) ?? DateTime.now().millisecondsSinceEpoch % 100000;
+            ref.read(notificationProvider.notifier).updateCount(notifs.length);
+
+            for (var n in notifs) {
+              final int notifId = int.tryParse(n['id'].toString()) ?? DateTime.now().millisecondsSinceEpoch % 100000;
+              if (!_shownNotificationIds.contains(notifId)) {
+                _shownNotificationIds.add(notifId);
                 final String type = n['type'] ?? 'alert';
-                final String title = type == 'rescue_alert' ? "🚨 EMERGENCY RESCUE" : "ShelPet Alert";
                 
-                await showNotification(notifId, title, n['message']);
-                
-                // Mark as read immediately to avoid duplicate popups
-                await http.post(Uri.parse("${ApiService.baseUrl}/notifications/mark_read.php"), body: jsonEncode({"id": n['id']}));
+                String title = "ShelPet Alert 🐾";
+                if (type == 'rescue_alert') {
+                  title = "🚨 EMERGENCY RESCUE";
+                } else if (type == 'reaction') {
+                  title = "❤️ New Reaction";
+                } else if (type == 'comment') {
+                  title = "💬 New Comment";
+                } else if (type == 'post') {
+                  title = "🐾 New Post";
+                }
+
+                await showNotification(notifId, title, n['message'] ?? 'New notification');
               }
-            } else {
-              ref.read(notificationProvider.notifier).updateCount(0);
             }
           }
         }

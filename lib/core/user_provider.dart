@@ -95,6 +95,10 @@ final userStatsProvider = FutureProvider.family<Map<String, dynamic>?, int>((ref
   return ApiService.getUserStats(userId);
 });
 
+final userHistoryProvider = FutureProvider.family<List<dynamic>, int>((ref, userId) async {
+  return ApiService.getUserHistory(userId);
+});
+
 final otherUserProfileProvider = FutureProvider.family<UserProfile?, int>((ref, userId) async {
   try {
     final response = await http.get(

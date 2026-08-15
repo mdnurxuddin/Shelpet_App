@@ -134,26 +134,65 @@ class _AdoptionScreenState extends ConsumerState<AdoptionScreen> {
               ),
               const SizedBox(height: 28),
               const Divider(height: 1, color: Color(0xFFF1F5F9)),
-              const SizedBox(height: 20),
-              Row(
-                children: [
-                  CircleAvatar(
-                    radius: 22,
-                    backgroundColor: ShelPetTheme.primaryAccent.withOpacity(0.1),
-                    child: Text(
-                      post.userName.isNotEmpty ? post.userName[0].toUpperCase() : 'U',
-                      style: const TextStyle(color: ShelPetTheme.primaryAccent, fontWeight: FontWeight.bold),
-                    ),
+              const SizedBox(height: 16),
+              InkWell(
+                onTap: () {
+                  Navigator.pop(context);
+                  context.push('/profile/${post.userId}');
+                },
+                borderRadius: BorderRadius.circular(16),
+                child: Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: ShelPetTheme.lightBg,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: Colors.grey.shade200),
                   ),
-                  const SizedBox(width: 12),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+                  child: Row(
                     children: [
-                      Text(post.userName, style: const TextStyle(fontWeight: FontWeight.bold, color: ShelPetTheme.textPrimary)),
-                      Text(isFostering ? 'Verified Foster' : 'Pet Giver', style: const TextStyle(color: ShelPetTheme.textMuted, fontSize: 11)),
+                      CircleAvatar(
+                        radius: 24,
+                        backgroundColor: ShelPetTheme.primaryAccent.withOpacity(0.1),
+                        backgroundImage: post.userAvatar != null && post.userAvatar!.isNotEmpty
+                            ? NetworkImage(post.userAvatar!)
+                            : null,
+                        child: post.userAvatar == null || post.userAvatar!.isEmpty
+                            ? Text(
+                                post.userName.isNotEmpty ? post.userName[0].toUpperCase() : 'U',
+                                style: const TextStyle(color: ShelPetTheme.primaryAccent, fontWeight: FontWeight.bold, fontSize: 18),
+                              )
+                            : null,
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Flexible(
+                                  child: Text(
+                                    post.userName,
+                                    style: const TextStyle(fontWeight: FontWeight.bold, color: ShelPetTheme.textPrimary, fontSize: 15),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                                const SizedBox(width: 6),
+                                const Icon(Icons.arrow_forward_ios_rounded, size: 12, color: ShelPetTheme.primaryAccent),
+                              ],
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              isFostering ? 'Verified Foster • Tap to view profile & history' : 'Pet Giver • Tap to view profile & history',
+                              style: const TextStyle(color: ShelPetTheme.primaryAccent, fontSize: 11, fontWeight: FontWeight.w600),
+                            ),
+                          ],
+                        ),
+                      ),
                     ],
                   ),
-                ],
+                ),
               ),
               const SizedBox(height: 24),
               if (isOwner) ...[
@@ -197,29 +236,51 @@ class _AdoptionScreenState extends ConsumerState<AdoptionScreen> {
                 if (post.status == 'done')
                   _buildStatusBanner(isFostering ? 'Already Booked' : 'Already Adopted')
                 else
-                  SizedBox(
-                    width: double.infinity,
-                    height: 56,
-                    child: ElevatedButton.icon(
-                      onPressed: () {
-                        if (!PhoneVerificationHelper.checkPhoneAndPrompt(context, ref)) return;
-                        if (!isVerified) {
-                           _showVerifyAlert(context);
-                           return;
-                        }
-                        Navigator.pop(context);
-                        context.push('/chat/${post.userId}/${post.userName}');
-                      },
-                      icon: const Icon(Icons.chat_bubble_outline, color: Colors.white),
-                      label: Text(
-                        isFostering ? 'Message Foster Parent' : 'Message Pet Giver', 
-                        style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white)
+                  Row(
+                    children: [
+                      if (post.displayContactNumber != null && post.displayContactNumber!.isNotEmpty) ...[
+                        SizedBox(
+                          height: 56,
+                          child: ElevatedButton.icon(
+                            onPressed: () {
+                              PhoneVerificationHelper.makePhoneCall(context, post.displayContactNumber!);
+                            },
+                            icon: const Icon(Icons.call, color: Colors.white),
+                            label: const Text('Call', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white)),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.green,
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                      ],
+                      Expanded(
+                        child: SizedBox(
+                          height: 56,
+                          child: ElevatedButton.icon(
+                            onPressed: () {
+                              if (!PhoneVerificationHelper.checkPhoneAndPrompt(context, ref)) return;
+                              if (!isVerified) {
+                                _showVerifyAlert(context);
+                                return;
+                              }
+                              Navigator.pop(context);
+                              context.push('/chat/${post.userId}/${post.userName}');
+                            },
+                            icon: const Icon(Icons.chat_bubble_outline, color: Colors.white),
+                            label: Text(
+                              isFostering ? 'Message Foster' : 'Message Pet Giver', 
+                              style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white)
+                            ),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: isVerified ? ShelPetTheme.primaryAccent : Colors.grey,
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                            ),
+                          ),
+                        ),
                       ),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: isVerified ? ShelPetTheme.primaryAccent : Colors.grey,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                      ),
-                    ),
+                    ],
                   ),
               ],
               const SizedBox(height: 12),
@@ -256,6 +317,14 @@ class _AdoptionScreenState extends ConsumerState<AdoptionScreen> {
             'ShelPet Care',
             style: GoogleFonts.outfit(fontWeight: FontWeight.bold, fontSize: 24, color: ShelPetTheme.textPrimary),
           ),
+          actions: [
+            IconButton(
+              icon: const Icon(Icons.history_rounded, color: ShelPetTheme.primaryAccent, size: 26),
+              tooltip: 'Adopted & Fostered History',
+              onPressed: () => _showAdoptedHistorySheet(context, postsAsync),
+            ),
+            const SizedBox(width: 8),
+          ],
           bottom: TabBar(
             labelColor: ShelPetTheme.primaryAccent,
             unselectedLabelColor: Colors.grey,
@@ -275,17 +344,17 @@ class _AdoptionScreenState extends ConsumerState<AdoptionScreen> {
             Expanded(
               child: postsAsync.when(
                 data: (posts) {
-                  // Apply location filters
-                  var filtered = posts;
+                  // Apply status (active only) and location filters
+                  var activePosts = posts.where((p) => p.status != 'done').toList();
                   if (_filterDistrict != null) {
-                    filtered = filtered.where((p) => p.location != null && p.location!.contains(_filterDistrict!)).toList();
+                    activePosts = activePosts.where((p) => p.location != null && p.location!.contains(_filterDistrict!)).toList();
                   }
                   if (_filterCity != null) {
-                    filtered = filtered.where((p) => p.location != null && p.location!.contains(_filterCity!)).toList();
+                    activePosts = activePosts.where((p) => p.location != null && p.location!.contains(_filterCity!)).toList();
                   }
 
-                  final adoptionPosts = filtered.where((p) => p.type == 'adoption').toList();
-                  final fosteringPosts = filtered.where((p) => p.type == 'fostering').toList();
+                  final adoptionPosts = activePosts.where((p) => p.type == 'adoption').toList();
+                  final fosteringPosts = activePosts.where((p) => p.type == 'fostering').toList();
 
                   return TabBarView(
                     children: [
@@ -526,6 +595,198 @@ class _AdoptionScreenState extends ConsumerState<AdoptionScreen> {
           ],
         ),
       ),
+    );
+  }
+
+  void _showAdoptedHistorySheet(BuildContext context, AsyncValue<List<Post>> postsAsync) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) {
+        return Container(
+          height: MediaQuery.of(context).size.height * 0.8,
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+          ),
+          child: DefaultTabController(
+            length: 2,
+            child: Column(
+              children: [
+                const SizedBox(height: 12),
+                Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(color: Colors.grey.shade300, borderRadius: BorderRadius.circular(2)),
+                ),
+                const SizedBox(height: 16),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  child: Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: ShelPetTheme.primaryAccent.withOpacity(0.1),
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(Icons.history_rounded, color: ShelPetTheme.primaryAccent, size: 24),
+                      ),
+                      const SizedBox(width: 12),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Adopted & Booked Archive',
+                            style: GoogleFonts.outfit(fontSize: 18, fontWeight: FontWeight.bold),
+                          ),
+                          Text(
+                            'Completed pet adoptions and paid fostering',
+                            style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 12),
+                TabBar(
+                  labelColor: ShelPetTheme.primaryAccent,
+                  unselectedLabelColor: Colors.grey,
+                  indicatorColor: ShelPetTheme.primaryAccent,
+                  labelStyle: GoogleFonts.outfit(fontWeight: FontWeight.bold, fontSize: 13),
+                  tabs: const [
+                    Tab(text: "Adopted Pets"),
+                    Tab(text: "Paid Fosters"),
+                  ],
+                ),
+                Expanded(
+                  child: postsAsync.when(
+                    data: (posts) {
+                      final doneAdoptions = posts.where((p) => p.type == 'adoption' && p.status == 'done').toList();
+                      final doneFosters = posts.where((p) => p.type == 'fostering' && p.status == 'done').toList();
+
+                      return TabBarView(
+                        children: [
+                          _buildHistoryList(context, doneAdoptions, "No completed adoptions found yet."),
+                          _buildHistoryList(context, doneFosters, "No completed fostering found yet."),
+                        ],
+                      );
+                    },
+                    loading: () => const Center(child: CircularProgressIndicator()),
+                    error: (err, _) => Center(child: Text('Error: $err')),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildHistoryList(BuildContext context, List<Post> posts, String emptyMessage) {
+    if (posts.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.pets_rounded, size: 56, color: Colors.grey.shade300),
+            const SizedBox(height: 12),
+            Text(
+              emptyMessage,
+              style: GoogleFonts.outfit(fontSize: 15, color: Colors.grey.shade600, fontWeight: FontWeight.w600),
+            ),
+          ],
+        ),
+      );
+    }
+    return ListView.builder(
+      padding: const EdgeInsets.all(20),
+      itemCount: posts.length,
+      itemBuilder: (context, index) {
+        final post = posts[index];
+        final isFostering = post.type == 'fostering';
+        return Container(
+          margin: const EdgeInsets.only(bottom: 12),
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: ShelPetTheme.lightBg,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: Colors.grey.shade200),
+          ),
+          child: Row(
+            children: [
+              ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: post.image != null && post.image!.isNotEmpty
+                    ? Image.network(post.image!, width: 64, height: 64, fit: BoxFit.cover, errorBuilder: (_, __, ___) => _buildHistoryPlaceholder())
+                    : _buildHistoryPlaceholder(),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                          decoration: BoxDecoration(
+                            color: (isFostering ? Colors.orange : Colors.green).withOpacity(0.12),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Text(
+                            isFostering ? 'FOSTERED (৳${post.price.toInt()})' : 'HAPPY ADOPTED',
+                            style: GoogleFonts.outfit(fontSize: 10, fontWeight: FontWeight.bold, color: isFostering ? Colors.orange.shade800 : Colors.green),
+                          ),
+                        ),
+                        const Spacer(),
+                        Text(
+                          post.createdAt != null ? post.createdAt!.split('T')[0] : '',
+                          style: TextStyle(fontSize: 11, color: Colors.grey.shade500),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      post.content,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: GoogleFonts.outfit(fontWeight: FontWeight.bold, fontSize: 14),
+                    ),
+                    const SizedBox(height: 4),
+                    Row(
+                      children: [
+                        Icon(Icons.location_on, size: 12, color: Colors.grey.shade500),
+                        const SizedBox(width: 2),
+                        Expanded(
+                          child: Text(
+                            post.location ?? 'Bangladesh',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildHistoryPlaceholder() {
+    return Container(
+      width: 64,
+      height: 64,
+      color: ShelPetTheme.primaryAccent.withOpacity(0.1),
+      child: const Icon(Icons.pets, color: ShelPetTheme.primaryAccent, size: 30),
     );
   }
 }

@@ -23,6 +23,7 @@ class CreatePostDialog extends ConsumerStatefulWidget {
 class _CreatePostDialogState extends ConsumerState<CreatePostDialog> {
   final _contentController = TextEditingController();
   final _priceController = TextEditingController();
+  final _contactController = TextEditingController();
   late String _selectedType;
   bool _isLoading = false;
   File? _image;
@@ -35,6 +36,7 @@ class _CreatePostDialogState extends ConsumerState<CreatePostDialog> {
   void dispose() {
     _contentController.dispose();
     _priceController.dispose();
+    _contactController.dispose();
     super.dispose();
   }
 
@@ -43,9 +45,12 @@ class _CreatePostDialogState extends ConsumerState<CreatePostDialog> {
     super.initState();
     _selectedType = widget.defaultType == 'feed' ? 'adoption' : widget.defaultType;
     
-    // Default selection logic for non-verified users
+    // Default selection logic & pre-fill phone number
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final user = ref.read(userProvider);
+      if (user != null && user.hasPhone) {
+        _contactController.text = user.phone!;
+      }
       if (user?.status != 'verified' && _selectedType == 'rescue') {
         setState(() {
           _selectedType = 'adoption';
@@ -62,6 +67,14 @@ class _CreatePostDialogState extends ConsumerState<CreatePostDialog> {
   Future<void> _submitPost() async {
     if (!PhoneVerificationHelper.checkPhoneAndPrompt(context, ref)) {
        return;
+    }
+
+    final contactNo = _contactController.text.trim();
+    if (_selectedType == 'rescue' && contactNo.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Contact Phone Number is REQUIRED for Rescue Alert posts!'), backgroundColor: Colors.red),
+      );
+      return;
     }
 
     if (_contentController.text.trim().isEmpty) {
@@ -102,6 +115,7 @@ class _CreatePostDialogState extends ConsumerState<CreatePostDialog> {
           "location": location,
           "image": imageUrl,
           "price": price,
+          "contact_number": contactNo.isNotEmpty ? contactNo : user?.phone,
         }),
       );
 
@@ -238,6 +252,34 @@ class _CreatePostDialogState extends ConsumerState<CreatePostDialog> {
                 decoration: const InputDecoration(
                   hintText: "What's on your mind?",
                   hintStyle: TextStyle(color: ShelPetTheme.textMuted, fontSize: 14),
+                  border: InputBorder.none,
+                ),
+              ),
+            ),
+            const SizedBox(height: 20),
+            Row(
+              children: [
+                const Text('Contact Phone Number ', style: TextStyle(color: ShelPetTheme.textSecondary, fontSize: 12, fontWeight: FontWeight.bold)),
+                if (_selectedType == 'rescue')
+                  const Text('*Required for Rescue', style: TextStyle(color: Colors.red, fontSize: 11, fontWeight: FontWeight.bold)),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Container(
+              decoration: BoxDecoration(
+                color: Colors.grey.shade50,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: Colors.grey.shade200),
+              ),
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: TextField(
+                controller: _contactController,
+                keyboardType: TextInputType.phone,
+                style: GoogleFonts.inter(fontSize: 14, color: ShelPetTheme.textPrimary, fontWeight: FontWeight.w600),
+                decoration: const InputDecoration(
+                  icon: Icon(Icons.phone_rounded, color: ShelPetTheme.primaryAccent, size: 20),
+                  hintText: "Enter contact phone number",
+                  hintStyle: TextStyle(color: ShelPetTheme.textMuted, fontSize: 13),
                   border: InputBorder.none,
                 ),
               ),

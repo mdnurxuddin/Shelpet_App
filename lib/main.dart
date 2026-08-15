@@ -10,6 +10,7 @@ import 'package:shelpet/features/chat/chat_list_screen.dart';
 import 'package:shelpet/features/chat/chat_screen.dart';
 import 'package:shelpet/features/profile/my_activity_screen.dart';
 import 'package:shelpet/features/profile/my_favorites_screen.dart';
+import 'package:shelpet/features/store/my_orders_screen.dart';
 import 'package:shelpet/features/profile/profile_screen.dart';
 import 'package:shelpet/features/admin/admin_dashboard.dart';
 import 'package:shelpet/features/feed/search_users_screen.dart';
@@ -73,11 +74,22 @@ final _router = GoRouter(
       builder: (context, state) => const MyActivityScreen(),
     ),
     GoRoute(
+      path: '/my-orders',
+      builder: (context, state) => const MyOrdersScreen(),
+    ),
+    GoRoute(
       path: '/my-favorites',
       builder: (context, state) => const MyFavoritesScreen(),
     ),
     GoRoute(
       path: '/user-profile/:userId',
+      builder: (context, state) {
+        final userId = int.parse(state.pathParameters['userId']!);
+        return ProfileScreen(targetUserId: userId);
+      },
+    ),
+    GoRoute(
+      path: '/profile/:userId',
       builder: (context, state) {
         final userId = int.parse(state.pathParameters['userId']!);
         return ProfileScreen(targetUserId: userId);

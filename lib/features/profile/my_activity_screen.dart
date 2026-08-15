@@ -46,7 +46,21 @@ class MyActivityScreen extends ConsumerWidget {
             itemCount: myPosts.length,
             itemBuilder: (context, index) {
               final post = myPosts[index];
-              final bool isRescued = post.status == 'done';
+              final bool isDone = post.status == 'done';
+
+              String statusText = "ACTIVE";
+              Color statusColor = Colors.orange.shade800;
+
+              if (isDone) {
+                statusColor = Colors.green;
+                if (post.type == 'rescue') {
+                  statusText = "RESCUED";
+                } else if (post.type == 'fostering') {
+                  statusText = "BOOKED";
+                } else {
+                  statusText = "ADOPTED";
+                }
+              }
 
               return Container(
                 margin: const EdgeInsets.only(bottom: 16),
@@ -55,7 +69,7 @@ class MyActivityScreen extends ConsumerWidget {
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(24),
                   boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.02), blurRadius: 10, offset: const Offset(0, 4))],
-                  border: Border.all(color: isRescued ? Colors.green.withOpacity(0.1) : Colors.black.withOpacity(0.03)),
+                  border: Border.all(color: isDone ? Colors.green.withOpacity(0.1) : Colors.black.withOpacity(0.03)),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -79,13 +93,13 @@ class MyActivityScreen extends ConsumerWidget {
                             Container(
                               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                               decoration: BoxDecoration(
-                                color: isRescued ? Colors.green.withOpacity(0.1) : Colors.orange.withOpacity(0.1),
+                                color: statusColor.withOpacity(0.12),
                                 borderRadius: BorderRadius.circular(8),
                               ),
                               child: Text(
-                                isRescued ? "RESCUED" : "ACTIVE",
+                                statusText,
                                 style: TextStyle(
-                                  color: isRescued ? Colors.green : Colors.orange.shade800,
+                                  color: statusColor,
                                   fontSize: 10, 
                                   fontWeight: FontWeight.bold
                                 ),
@@ -174,7 +188,7 @@ class MyActivityScreen extends ConsumerWidget {
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         Text(post.createdAt, style: const TextStyle(color: ShelPetTheme.textMuted, fontSize: 11)),
-                        if (post.type == 'rescue' && !isRescued)
+                        if (post.type == 'rescue' && !isDone)
                           TextButton.icon(
                             onPressed: () => _showRescueProofDialog(context, ref, post.id),
                             icon: const Icon(Icons.check_circle_outline, size: 16),

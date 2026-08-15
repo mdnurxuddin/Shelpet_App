@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:shelpet/core/api_service.dart';
 import 'package:shelpet/core/theme.dart';
 import 'package:shelpet/core/user_provider.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class PhoneVerificationHelper {
   /// Checks if the user has a phone number. Returns true if present, 
@@ -149,5 +150,42 @@ class PhoneVerificationHelper {
         ),
       ),
     );
+  }
+
+  static Future<void> makePhoneCall(BuildContext context, String phone) async {
+    final cleanPhone = phone.trim();
+    if (cleanPhone.isEmpty) return;
+    final Uri launchUri = Uri(scheme: 'tel', path: cleanPhone);
+    try {
+      if (await canLaunchUrl(launchUri)) {
+        await launchUrl(launchUri);
+      } else {
+        if (context.mounted) {
+          showDialog(
+            context: context,
+            builder: (context) => AlertDialog(
+              title: const Text('Contact Phone'),
+              content: SelectableText('Call or save: $cleanPhone'),
+              actions: [
+                TextButton(onPressed: () => Navigator.pop(context), child: const Text('OK')),
+              ],
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      if (context.mounted) {
+        showDialog(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('Contact Phone'),
+            content: SelectableText('Call or save: $cleanPhone'),
+            actions: [
+              TextButton(onPressed: () => Navigator.pop(context), child: const Text('OK')),
+            ],
+          ),
+        );
+      }
+    }
   }
 }

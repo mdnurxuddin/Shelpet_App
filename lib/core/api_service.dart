@@ -152,8 +152,19 @@ class ApiService {
 
   static Future<Map<String, dynamic>> updatePostStatus(int postId, String status, {String? proofImage}) async {
     try {
-      final response = await http.post(Uri.parse("$baseUrl/posts/update_post_status.php"), body: jsonEncode({"post_id": postId, "status": status, "proof_image": proofImage}));
-      return jsonDecode(response.body);
+      final response = await http.post(
+        Uri.parse("$baseUrl/posts/update_post_status.php"),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({"post_id": postId, "status": status, "proof_image": proofImage}),
+      );
+      if (response.body.trim().isEmpty) {
+        return {"status": false, "message": "Server returned empty response (${response.statusCode})"};
+      }
+      try {
+        return jsonDecode(response.body);
+      } catch (e) {
+        return {"status": false, "message": "Invalid response: ${response.body}"};
+      }
     } catch (e) { return {"status": false, "message": "Connection error: $e"}; }
   }
 
@@ -172,6 +183,15 @@ class ApiService {
     } catch (e) { return []; }
   }
 
+  static Future<void> markNotificationRead(int notifId) async {
+    try {
+      await http.post(
+        Uri.parse("$baseUrl/notifications/mark_read.php"),
+        body: jsonEncode({"id": notifId}),
+      );
+    } catch (_) {}
+  }
+
   static Future<List<dynamic>> searchUsers(String query) async {
     try {
       final response = await http.get(Uri.parse("$baseUrl/users/search_users.php?q=$query"));
@@ -182,9 +202,36 @@ class ApiService {
 
   static Future<Map<String, dynamic>> placeOrder({required int buyerId, required int productId, required String address, required String phone, int quantity = 1}) async {
     try {
-      final response = await http.post(Uri.parse("$baseUrl/store/place_order.php"), body: jsonEncode({"buyer_id": buyerId, "product_id": productId, "address": address, "phone": phone, "quantity": quantity}));
+      final response = await http.post(
+        Uri.parse("$baseUrl/store/place_order.php"),
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+          'Accept': 'application/json',
+          'Content-Type': 'application/json',
+        },
+        body: jsonEncode({
+          "buyer_id": buyerId,
+          "product_id": productId,
+          "address": address,
+          "phone": phone,
+          "quantity": quantity,
+        }),
+      );
       return jsonDecode(response.body);
-    } catch (e) { return {"status": false, "message": "Connection error: $e"}; }
+    } catch (e) {
+      return {"status": false, "message": "Connection error: $e"};
+    }
+  }
+
+  static Future<List<dynamic>> getMyOrders(int userId, {String role = 'buyer'}) async {
+    try {
+      final response = await http.get(Uri.parse("$baseUrl/store/get_orders.php?user_id=$userId&role=$role"));
+      if (response.body.trim().isEmpty) return [];
+      final data = jsonDecode(response.body);
+      return data['status'] == true ? data['data'] ?? [] : [];
+    } catch (e) {
+      return [];
+    }
   }
 
   static Future<Map<String, dynamic>> changePassword(int userId, String currentPassword, String newPassword) async {
@@ -218,10 +265,34 @@ class ApiService {
 
   static Future<List<dynamic>> getProducts(String category) async {
     try {
-      final response = await http.get(Uri.parse("$baseUrl/store/get_products.php?category=$category"));
+      final response = await http.get(
+        Uri.parse("$baseUrl/store/get_products.php?category=$category"),
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+          'Accept': 'application/json',
+        },
+      );
       final data = jsonDecode(response.body);
       return data['status'] == true ? data['data'] ?? [] : [];
-    } catch (e) { return []; }
+    } catch (e) {
+      return [];
+    }
+  }
+
+  static Future<List<dynamic>> getUserHistory(int userId) async {
+    try {
+      final response = await http.get(
+        Uri.parse("$baseUrl/profile/get_user_history.php?user_id=$userId"),
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+          'Accept': 'application/json',
+        },
+      );
+      final data = jsonDecode(response.body);
+      return data['status'] == true ? data['data'] ?? [] : [];
+    } catch (e) {
+      return [];
+    }
   }
 
   static Future<Map<String, dynamic>> createProduct({required int userId, required String name, required String description, required double price, required String category, String? image, int stock = 0}) async {

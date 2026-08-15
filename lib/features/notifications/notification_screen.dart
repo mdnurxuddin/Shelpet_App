@@ -4,7 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:shelpet/core/theme.dart';
 import 'package:shelpet/core/api_service.dart';
 import 'package:shelpet/core/user_provider.dart';
-import 'package:go_router/go_router.dart';
+import 'package:shelpet/core/notification_provider.dart';
 
 class NotificationScreen extends ConsumerWidget {
   const NotificationScreen({super.key});
@@ -21,7 +21,12 @@ class NotificationScreen extends ConsumerWidget {
       body: user == null 
         ? const Center(child: Text('Please login to see notifications'))
         : FutureBuilder<List<dynamic>>(
-            future: ApiService.getNotifications(user.id),
+            future: ApiService.getNotifications(user.id).then((notifs) {
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                ref.read(notificationProvider.notifier).updateCount(0);
+              });
+              return notifs;
+            }),
             builder: (context, snapshot) {
               if (snapshot.connectionState == ConnectionState.waiting) {
                 return const Center(child: CircularProgressIndicator());
@@ -45,7 +50,7 @@ class NotificationScreen extends ConsumerWidget {
                 itemCount: notifications.length,
                 itemBuilder: (context, index) {
                   final n = notifications[index];
-                  return _buildNotificationTile(context, n);
+                  return _buildNotificationTile(context, n, ref);
                 },
               );
             },
@@ -53,13 +58,22 @@ class NotificationScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildNotificationTile(BuildContext context, dynamic n) {
+  Widget _buildNotificationTile(BuildContext context, dynamic n, WidgetRef ref) {
     IconData icon = Icons.notifications;
     Color color = ShelPetTheme.primaryAccent;
 
     if (n['type'] == 'rescue_alert') {
       icon = Icons.emergency_share;
       color = Colors.redAccent;
+    } else if (n['type'] == 'reaction') {
+      icon = Icons.favorite_rounded;
+      color = Colors.pinkAccent;
+    } else if (n['type'] == 'comment') {
+      icon = Icons.comment_rounded;
+      color = Colors.teal;
+    } else if (n['type'] == 'post') {
+      icon = Icons.pets_rounded;
+      color = Colors.orangeAccent;
     } else if (n['type'] == 'message') {
       icon = Icons.chat_bubble_rounded;
       color = Colors.blueAccent;
@@ -68,19 +82,21 @@ class NotificationScreen extends ConsumerWidget {
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
-        color: n['is_read'] == "0" ? color.withOpacity(0.05) : Colors.white,
+        color: n['is_read'] == "0" ? color.withOpacity(0.08) : Colors.white,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: n['is_read'] == "0" ? color.withOpacity(0.2) : Colors.black.withOpacity(0.03)),
+        border: Border.all(color: n['is_read'] == "0" ? color.withOpacity(0.3) : Colors.black.withOpacity(0.04)),
       ),
       child: ListTile(
         onTap: () {
-           // Handle navigation based on type
-           if (n['post_id'] != null) {
-              // Maybe go to post details
-           }
+          if (n['id'] != null) {
+            final int notifId = int.tryParse(n['id'].toString()) ?? 0;
+            if (notifId > 0) {
+              ApiService.markNotificationRead(notifId);
+            }
+          }
         },
         leading: CircleAvatar(
-          backgroundColor: color.withOpacity(0.1),
+          backgroundColor: color.withOpacity(0.12),
           child: Icon(icon, color: color, size: 20),
         ),
         title: Text(

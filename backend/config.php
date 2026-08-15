@@ -9,14 +9,60 @@ try {
     $conn->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
     $conn->exec("SET NAMES utf8mb4");
 } catch (PDOException $exception) {
-    echo "Connection error: " . $exception->getMessage();
+    header("Content-Type: application/json");
+    echo json_encode(["status" => false, "message" => "Database connection error: " . $exception->getMessage()]);
+    exit();
 }
 
-try {
-    $conn->query("SELECT address FROM users LIMIT 1");
-} catch (Exception $e) {
-    $conn->exec("ALTER TABLE users ADD COLUMN address VARCHAR(255) DEFAULT NULL");
+if (isset($conn) && $conn) {
+    try {
+        $conn->query("SELECT address FROM users LIMIT 1");
+    } catch (Exception $e) {
+        try { $conn->exec("ALTER TABLE users ADD COLUMN address VARCHAR(255) DEFAULT NULL"); } catch (Exception $ex) {}
+    }
+
+    try {
+        $conn->query("SELECT contact_number FROM posts LIMIT 1");
+    } catch (Exception $e) {
+        try { $conn->exec("ALTER TABLE posts ADD COLUMN contact_number VARCHAR(20) DEFAULT NULL"); } catch (Exception $ex) {}
+    }
+
+    try {
+        $conn->exec("CREATE TABLE IF NOT EXISTS products (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            user_id INT,
+            name VARCHAR(255) NOT NULL,
+            description TEXT,
+            price DECIMAL(10, 2) NOT NULL,
+            category ENUM('food', 'accessory', 'medicine') NOT NULL,
+            image VARCHAR(255),
+            stock INT DEFAULT 0,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )");
+    } catch (Exception $e) {}
+
+    try {
+        $conn->exec("CREATE TABLE IF NOT EXISTS orders (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            buyer_id INT NOT NULL,
+            seller_id INT NOT NULL,
+            product_id INT NOT NULL,
+            quantity INT DEFAULT 1,
+            shipping_address TEXT NOT NULL,
+            phone_number VARCHAR(20) NOT NULL,
+            total_price DECIMAL(10,2) NOT NULL,
+            status ENUM('pending', 'accepted', 'shipped', 'delivered', 'cancelled') DEFAULT 'pending',
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )");
+    } catch (Exception $e) {}
+
+    try {
+        $conn->query("SELECT quantity FROM orders LIMIT 1");
+    } catch (Exception $e) {
+        try { $conn->exec("ALTER TABLE orders ADD COLUMN quantity INT DEFAULT 1"); } catch (Exception $ex) {}
+    }
 }
+
 
 try {
     $conn->exec("CREATE TABLE IF NOT EXISTS messages (

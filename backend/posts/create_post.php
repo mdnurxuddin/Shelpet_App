@@ -4,8 +4,10 @@ include_once '../config.php';
 $data = json_decode(file_get_contents("php://input"));
 
 if(!empty($data->user_id) && !empty($data->content) && !empty($data->type)) {
-    $query = "INSERT INTO posts (user_id, content, image, type, location, price, pet_details)
-              VALUES (:user_id, :content, :image, :type, :location, :price, :pet_details)";
+    $contact_number = isset($data->contact_number) ? trim($data->contact_number) : null;
+
+    $query = "INSERT INTO posts (user_id, content, image, type, location, price, pet_details, contact_number)
+              VALUES (:user_id, :content, :image, :type, :location, :price, :pet_details, :contact_number)";
     $stmt = $conn->prepare($query);
 
     $stmt->bindParam(':user_id', $data->user_id);
@@ -16,19 +18,32 @@ if(!empty($data->user_id) && !empty($data->content) && !empty($data->type)) {
     $stmt->bindParam(':price', $data->price);
     $pet_details = isset($data->pet_details) ? json_encode($data->pet_details) : null;
     $stmt->bindParam(':pet_details', $pet_details);
+    $stmt->bindParam(':contact_number', $contact_number);
 
     if($stmt->execute()) {
         $post_id = $conn->lastInsertId();
         
+        $authorQuery = "SELECT name, phone FROM users WHERE id = :user_id";
+        $authorStmt = $conn->prepare($authorQuery);
+        $authorStmt->bindParam(':user_id', $data->user_id);
+        $authorStmt->execute();
+        $authorRow = $authorStmt->fetch(PDO::FETCH_ASSOC);
+        $authorName = $authorRow['name'] ?? "Someone";
+
+        $notifMsg = null;
+        $notifType = 'alert';
+
         if ($data->type === 'rescue') {
-            $authorQuery = "SELECT name FROM users WHERE id = :user_id";
-            $authorStmt = $conn->prepare($authorQuery);
-            $authorStmt->bindParam(':user_id', $data->user_id);
-            $authorStmt->execute();
-            $authorName = $authorStmt->fetchColumn() ?: "Someone";
+            $finalContact = !empty($contact_number) ? $contact_number : ($authorRow['phone'] ?? '');
+            $contactInfo = !empty($finalContact) ? " (Call: $finalContact)" : "";
+            $notifMsg = "$authorName posted an URGENT rescue request at " . ($data->location ?: "nearby location") . $contactInfo;
+            $notifType = 'rescue_alert';
+        } else if ($data->type === 'adoption' || $data->type === 'foster') {
+            $notifMsg = "$authorName posted a new pet " . strtoupper($data->type) . " listing!";
+            $notifType = 'post';
+        }
 
-            $notifMsg = "$authorName posted an URGENT rescue request at " . ($data->location ?: "nearby location");
-
+        if (!empty($notifMsg)) {
             $usersQuery = "SELECT id FROM users WHERE id != :user_id";
             $usersStmt = $conn->prepare($usersQuery);
             $usersStmt->bindParam(':user_id', $data->user_id);
@@ -37,13 +52,14 @@ if(!empty($data->user_id) && !empty($data->content) && !empty($data->type)) {
 
             if (!empty($otherUsers)) {
                 $insertNotif = "INSERT INTO notifications (user_id, actor_id, post_id, type, message) 
-                                VALUES (:target_user_id, :actor_id, :post_id, 'rescue_alert', :message)";
+                                VALUES (:target_user_id, :actor_id, :post_id, :type, :message)";
                 $insertNotifStmt = $conn->prepare($insertNotif);
                 foreach ($otherUsers as $targetUserId) {
                     $insertNotifStmt->execute([
                         ':target_user_id' => $targetUserId,
                         ':actor_id' => $data->user_id,
                         ':post_id' => $post_id,
+                        ':type' => $notifType,
                         ':message' => $notifMsg
                     ]);
                 }

@@ -10,6 +10,8 @@ class Post {
   final int userId;
   final String userName;
   final String? userAvatar;
+  final String? userPhone;
+  final String? contactNumber;
   final String content;
   final String? image;
   final String type;
@@ -26,6 +28,8 @@ class Post {
     required this.userId,
     required this.userName,
     this.userAvatar,
+    this.userPhone,
+    this.contactNumber,
     required this.content,
     this.image,
     required this.type,
@@ -38,12 +42,24 @@ class Post {
     this.hasLiked = false,
   });
 
+  String? get displayContactNumber {
+    if (contactNumber != null && contactNumber!.trim().isNotEmpty) {
+      return contactNumber!.trim();
+    }
+    if (userPhone != null && userPhone!.trim().isNotEmpty) {
+      return userPhone!.trim();
+    }
+    return null;
+  }
+
   factory Post.fromJson(Map<String, dynamic> json) {
     return Post(
       id: int.parse(json['id'].toString()),
       userId: int.parse((json['user_id'] ?? 0).toString()),
       userName: json['user_name'] ?? 'Unknown User',
       userAvatar: json['user_avatar'],
+      userPhone: json['user_phone'],
+      contactNumber: json['contact_number'],
       content: json['content'] ?? '',
       image: json['image'],
       type: json['type'] ?? 'feed',

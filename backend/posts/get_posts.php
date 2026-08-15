@@ -5,15 +5,21 @@ $type = isset($_GET['type']) ? $_GET['type'] : null;
 $user_id = isset($_GET['user_id']) ? (int)$_GET['user_id'] : 0;
 $limit = isset($_GET['limit']) ? (int)$_GET['limit'] : 50;
 
-$query = "SELECT p.*, u.name as user_name, u.avatar as user_avatar,
+$where = [];
+if($type) {
+    $where[] = "p.type = :type";
+}
+
+$query = "SELECT p.*, u.name as user_name, u.avatar as user_avatar, u.phone as user_phone,
           (SELECT COUNT(*) FROM reactions WHERE post_id = p.id) as likes_count,
           (SELECT COUNT(*) FROM comments WHERE post_id = p.id) as comments_count,
           (SELECT COUNT(*) FROM reactions WHERE post_id = p.id AND user_id = :user_id) as has_liked
           FROM posts p JOIN users u ON p.user_id = u.id";
-          
-if($type) {
-    $query .= " WHERE p.type = :type";
+
+if (count($where) > 0) {
+    $query .= " WHERE " . implode(" AND ", $where);
 }
+
 $query .= " ORDER BY p.created_at DESC LIMIT :limit";
 
 $stmt = $conn->prepare($query);

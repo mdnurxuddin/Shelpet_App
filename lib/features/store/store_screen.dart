@@ -4,10 +4,12 @@ import 'package:animate_do/animate_do.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
+import 'package:go_router/go_router.dart';
 import 'package:shelpet/core/theme.dart';
 import 'package:shelpet/core/api_service.dart';
 import 'package:shelpet/core/user_provider.dart';
 import 'package:shelpet/core/phone_verification_helper.dart';
+import 'package:shelpet/features/store/my_orders_screen.dart';
 
 class Product {
   final int id;
@@ -45,6 +47,7 @@ class Product {
 }
 
 final storeCategoryProvider = StateProvider<String>((ref) => 'All');
+final storeSearchQueryProvider = StateProvider<String>((ref) => '');
 
 final productsProvider = FutureProvider<List<Product>>((ref) async {
   final category = ref.watch(storeCategoryProvider);
@@ -116,26 +119,45 @@ class StoreScreen extends ConsumerWidget {
                 child: ElevatedButton(
                   onPressed: isOrdering ? null : () async {
                     if (!PhoneVerificationHelper.checkPhoneAndPrompt(context, ref)) return;
-                    if (addressController.text.isEmpty || phoneController.text.isEmpty) return;
+                    if (addressController.text.trim().isEmpty || phoneController.text.trim().isEmpty) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Please fill in both delivery address and phone number.'), backgroundColor: Colors.orange),
+                      );
+                      return;
+                    }
                     setModalState(() => isOrdering = true);
                     
                     final res = await ApiService.placeOrder(
                       buyerId: user!.id,
                       productId: product.id,
-                      address: addressController.text,
-                      phone: phoneController.text,
+                      address: addressController.text.trim(),
+                      phone: phoneController.text.trim(),
                     );
 
                     if (res['status'] == true) {
-                      Navigator.pop(context);
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Order Placed! Admin will process soon. 🎉'), backgroundColor: Colors.green),
-                      );
+                      ref.invalidate(myOrdersProvider(user!.id));
+                      if (context.mounted) {
+                        Navigator.pop(context);
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: const Text('Order Placed! Admin will process soon. 🎉'),
+                            backgroundColor: Colors.green,
+                            duration: const Duration(seconds: 5),
+                            action: SnackBarAction(
+                              label: 'TRACK STATUS',
+                              textColor: Colors.white,
+                              onPressed: () => context.push('/my-orders'),
+                            ),
+                          ),
+                        );
+                      }
                     } else {
                       setModalState(() => isOrdering = false);
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text('Error: ${res['message']}')),
-                      );
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text('Error: ${res['message']}')),
+                        );
+                      }
                     }
                   },
                   child: isOrdering 
@@ -221,12 +243,21 @@ class StoreScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final productsAsync = ref.watch(productsProvider);
     final selectedCat = ref.watch(storeCategoryProvider);
+    final searchQuery = ref.watch(storeSearchQueryProvider);
     final user = ref.watch(userProvider);
 
     return Scaffold(
       backgroundColor: ShelPetTheme.lightBg,
       appBar: AppBar(
         title: Text('Pet Store', style: GoogleFonts.outfit(fontWeight: FontWeight.bold, fontSize: 24)),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.receipt_long_rounded, color: ShelPetTheme.primaryAccent, size: 26),
+            tooltip: 'My Store Orders',
+            onPressed: () => context.push('/my-orders'),
+          ),
+          const SizedBox(width: 8),
+        ],
       ),
       body: RefreshIndicator(
         onRefresh: () => ref.refresh(productsProvider.future),
@@ -237,23 +268,44 @@ class StoreScreen extends ConsumerWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _buildSearchBar(),
-              const SizedBox(height: 24),
+              _buildSearchBar(ref),
+              const SizedBox(height: 16),
+              _buildActiveOrderStatusCard(context, ref, user),
               _buildCategories(ref, selectedCat),
               const SizedBox(height: 24),
               productsAsync.when(
-                data: (products) => GridView.builder(
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 2,
-                    childAspectRatio: 0.8,
-                    crossAxisSpacing: 16,
-                    mainAxisSpacing: 16,
-                  ),
-                  itemCount: products.length,
-                  itemBuilder: (context, index) => _buildProductCard(context, products[index], ref),
-                ),
+                data: (products) {
+                  final filteredProducts = searchQuery.trim().isEmpty
+                      ? products
+                      : products.where((p) =>
+                          p.name.toLowerCase().contains(searchQuery.toLowerCase()) ||
+                          (p.description?.toLowerCase().contains(searchQuery.toLowerCase()) ?? false)).toList();
+
+                  if (filteredProducts.isEmpty) {
+                    return Center(
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 40),
+                        child: Text(
+                          'No items found in $selectedCat category',
+                          style: const TextStyle(color: ShelPetTheme.textMuted),
+                        ),
+                      ),
+                    );
+                  }
+
+                  return GridView.builder(
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                      crossAxisCount: 2,
+                      childAspectRatio: 0.8,
+                      crossAxisSpacing: 16,
+                      mainAxisSpacing: 16,
+                    ),
+                    itemCount: filteredProducts.length,
+                    itemBuilder: (context, index) => _buildProductCard(context, filteredProducts[index], ref),
+                  );
+                },
                 loading: () => const Center(child: CircularProgressIndicator()),
                 error: (err, stack) => Center(child: Text('Error: $err')),
               ),
@@ -272,7 +324,7 @@ class StoreScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildSearchBar() {
+  Widget _buildSearchBar(WidgetRef ref) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16),
       decoration: BoxDecoration(
@@ -280,14 +332,188 @@ class StoreScreen extends ConsumerWidget {
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: Colors.black.withOpacity(0.04)),
       ),
-      child: const TextField(
-        decoration: InputDecoration(
+      child: TextField(
+        onChanged: (val) => ref.read(storeSearchQueryProvider.notifier).state = val,
+        decoration: const InputDecoration(
           hintText: 'Search items...',
           hintStyle: TextStyle(color: ShelPetTheme.textMuted),
           icon: Icon(Icons.search, color: ShelPetTheme.primaryAccent),
           border: InputBorder.none,
         ),
       ),
+    );
+  }
+
+  Widget _buildActiveOrderStatusCard(BuildContext context, WidgetRef ref, UserProfile? user) {
+    if (user == null) return const SizedBox.shrink();
+
+    final ordersAsync = ref.watch(myOrdersProvider(user.id));
+
+    return ordersAsync.when(
+      data: (orders) {
+        if (orders.isEmpty) return const SizedBox.shrink();
+
+        final latestOrder = orders.first;
+        final String status = latestOrder['status'] ?? 'pending';
+        final String productName = latestOrder['product_name'] ?? 'Product Item';
+        final double totalPrice = double.tryParse(latestOrder['total_price'].toString()) ?? 0.0;
+        final int totalOrders = orders.length;
+
+        Color statusColor;
+        String statusText;
+        IconData statusIcon;
+
+        switch (status.toLowerCase()) {
+          case 'accepted':
+            statusColor = Colors.blue.shade700;
+            statusText = 'ACCEPTED';
+            statusIcon = Icons.inventory_2_outlined;
+            break;
+          case 'shipped':
+            statusColor = Colors.purple.shade700;
+            statusText = 'ON THE WAY';
+            statusIcon = Icons.local_shipping_outlined;
+            break;
+          case 'delivered':
+            statusColor = Colors.green.shade700;
+            statusText = 'DELIVERED';
+            statusIcon = Icons.check_circle_outline;
+            break;
+          case 'cancelled':
+            statusColor = Colors.red.shade700;
+            statusText = 'CANCELLED';
+            statusIcon = Icons.cancel_outlined;
+            break;
+          case 'pending':
+          default:
+            statusColor = Colors.orange.shade800;
+            statusText = 'PENDING APPROVAL';
+            statusIcon = Icons.hourglass_empty_rounded;
+            break;
+        }
+
+        return Container(
+          margin: const EdgeInsets.only(bottom: 16),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [statusColor.withOpacity(0.08), Colors.white],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: statusColor.withOpacity(0.3)),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.02),
+                blurRadius: 8,
+                offset: const Offset(0, 3),
+              )
+            ],
+          ),
+          child: Material(
+            color: Colors.transparent,
+            child: InkWell(
+              borderRadius: BorderRadius.circular(20),
+              onTap: () => context.push('/my-orders'),
+              child: Padding(
+                padding: const EdgeInsets.all(14),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Row(
+                          children: [
+                            Icon(Icons.local_mall_outlined, size: 18, color: statusColor),
+                            const SizedBox(width: 6),
+                            Text(
+                              'My Orders ($totalOrders)',
+                              style: GoogleFonts.outfit(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 13,
+                                color: ShelPetTheme.textPrimary,
+                              ),
+                            ),
+                          ],
+                        ),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: statusColor.withOpacity(0.15),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(statusIcon, size: 12, color: statusColor),
+                              const SizedBox(width: 4),
+                              Text(
+                                statusText,
+                                style: GoogleFonts.outfit(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.bold,
+                                  color: statusColor,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                productName,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: GoogleFonts.outfit(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w600,
+                                  color: ShelPetTheme.textPrimary,
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                'Total: ৳${totalPrice.toStringAsFixed(0)}',
+                                style: GoogleFonts.outfit(
+                                  fontSize: 12,
+                                  color: ShelPetTheme.textMuted,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        Row(
+                          children: [
+                            Text(
+                              'View Status',
+                              style: GoogleFonts.outfit(
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                                color: ShelPetTheme.primaryAccent,
+                              ),
+                            ),
+                            const SizedBox(width: 4),
+                            const Icon(Icons.arrow_forward_ios_rounded, size: 11, color: ShelPetTheme.primaryAccent),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        );
+      },
+      loading: () => const SizedBox.shrink(),
+      error: (_, __) => const SizedBox.shrink(),
     );
   }
 
@@ -432,15 +658,43 @@ class _CreateProductDialogState extends ConsumerState<CreateProductDialog> {
               ),
             ),
             const SizedBox(height: 16),
-            TextField(controller: _nameController, decoration: const InputDecoration(labelText: 'Product Name')),
-            TextField(controller: _priceController, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'Price (৳)')),
-            TextField(controller: _stockController, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'Initial Stock')),
-            TextField(controller: _descController, maxLines: 2, decoration: const InputDecoration(labelText: 'Description')),
+            TextField(controller: _nameController, decoration: const InputDecoration(labelText: 'Product Name', border: OutlineInputBorder())),
+            const SizedBox(height: 12),
+            DropdownButtonFormField<String>(
+              value: _selectedCategory,
+              decoration: InputDecoration(
+                labelText: 'Select Category',
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+              items: const [
+                DropdownMenuItem(value: 'Food', child: Text('🍲 Food')),
+                DropdownMenuItem(value: 'Accessories', child: Text('🧸 Accessories')),
+                DropdownMenuItem(value: 'Medicine', child: Text('💊 Medicine')),
+              ],
+              onChanged: (val) {
+                if (val != null) setState(() => _selectedCategory = val);
+              },
+            ),
+            const SizedBox(height: 12),
+            TextField(controller: _priceController, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'Price (৳)', border: OutlineInputBorder())),
+            const SizedBox(height: 12),
+            TextField(controller: _stockController, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'Initial Stock', border: OutlineInputBorder())),
+            const SizedBox(height: 12),
+            TextField(controller: _descController, maxLines: 2, decoration: const InputDecoration(labelText: 'Description', border: OutlineInputBorder())),
             const SizedBox(height: 24),
             SizedBox(
               width: double.infinity,
               height: 50,
-              child: ElevatedButton(onPressed: _isLoading ? null : _submitProduct, child: const Text('Add to Store')),
+              child: ElevatedButton(
+                onPressed: _isLoading ? null : _submitProduct,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: ShelPetTheme.primaryAccent,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                ),
+                child: _isLoading
+                  ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                  : const Text('Add to Store', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white, fontSize: 16)),
+              ),
             ),
           ],
         ),

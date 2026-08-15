@@ -14,14 +14,6 @@ if(!empty($data->email) && !empty($data->password)) {
         if($user && password_verify($data->password, $user['password'])) {
             unset($user['password']);
 
-            // Check email verification status
-            if (isset($user['is_email_verified']) && $user['is_email_verified'] == 0) {
-                sendResponse(false, "Your email is not verified yet. Please enter the verification code sent to your email.", [
-                    "require_otp" => true,
-                    "email" => $user['email']
-                ]);
-            }
-
             sendResponse(true, "Login successful.", $user);
         } else if (!$user) {
             sendResponse(false, "Failed to retrieve user profile from database.");

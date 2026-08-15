@@ -41,6 +41,14 @@ class _HomeWrapperState extends ConsumerState<HomeWrapper> {
 
   @override
   Widget build(BuildContext context) {
+    ref.listen(userProvider, (previous, next) {
+      if (next != null) {
+        NotificationService.startPolling(next.id, ref);
+      } else {
+        NotificationService.stopPolling();
+      }
+    });
+
     return Scaffold(
       body: AnimatedSwitcher(
         duration: const Duration(milliseconds: 300),
